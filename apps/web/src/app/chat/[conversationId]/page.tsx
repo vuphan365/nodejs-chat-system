@@ -55,18 +55,21 @@ export default function ConversationPage() {
   // This works even when user hasn't joined the conversation room
   useEffect(() => {
     if (socket && isConnected) {
-      const handleNewMessage = (data: any) => {
+      const handleNewMessage = (event: any) => {
+        // The event structure is: { type: 'message:new', data: { id, conversationId, senderId, body, createdAt } }
+        const messageData = event.data;
+
         // Update conversation list with new message
         setConversations((prev) =>
           prev.map((conv) => {
-            if (conv.id === data.conversationId) {
+            if (conv.id === messageData.conversationId) {
               // Only increment unread if not currently viewing this conversation
-              const isCurrentConversation = conversationId === data.conversationId;
+              const isCurrentConversation = conversationId === messageData.conversationId;
               return {
                 ...conv,
                 lastMessage: {
-                  body: data.body,
-                  createdAt: data.createdAt,
+                  body: messageData.body,
+                  createdAt: messageData.createdAt,
                 },
                 unreadCount: isCurrentConversation ? conv.unreadCount : conv.unreadCount + 1,
               };

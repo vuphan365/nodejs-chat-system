@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useSocket } from '@/contexts/SocketContext';
-import { api } from '@/lib/api';
-import { format } from 'date-fns';
-import MessageInput from './MessageInput';
-import TypingIndicator from './TypingIndicator';
+import { useEffect, useState, useRef } from "react";
+import { useSocket } from "@/contexts/SocketContext";
+import { api } from "@/lib/api";
+import { format } from "date-fns";
+import MessageInput from "./MessageInput";
+import TypingIndicator from "./TypingIndicator";
 
 interface Message {
   id: string;
@@ -21,7 +21,7 @@ interface Message {
 
 interface Conversation {
   id: string;
-  type: 'direct' | 'group';
+  type: "direct" | "group";
   name?: string;
   participants: Array<{
     user: {
@@ -52,21 +52,21 @@ export default function ChatWindow({
 
   useEffect(() => {
     loadMessages();
-    
+
     if (socket && isConnected) {
       // Join conversation room
-      socket.emit('join', { conversationId: conversation.id });
+      socket.emit("join", { conversationId: conversation.id });
 
       // Listen for new messages
-      socket.on('message:new', handleNewMessage);
-      
+      socket.on("message:new", handleNewMessage);
+
       // Listen for typing indicators
-      socket.on('typing', handleTyping);
+      socket.on("typing", handleTyping);
 
       return () => {
-        socket.emit('leave', { conversationId: conversation.id });
-        socket.off('message:new', handleNewMessage);
-        socket.off('typing', handleTyping);
+        socket.emit("leave", { conversationId: conversation.id });
+        socket.off("message:new", handleNewMessage);
+        socket.off("typing", handleTyping);
       };
     }
   }, [conversation.id, socket, isConnected]);
@@ -78,26 +78,26 @@ export default function ChatWindow({
   const loadMessages = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get('/api/messages', {
+      const response = await api.get("/api/messages", {
         params: {
           conversationId: conversation.id,
           limit: 50,
         },
       });
-      const result = [...response?.data?.data?.data || []].reverse();
+      const result = [...(response?.data?.data?.data || [])].reverse();
       setMessages(result);
-      
+
       // Mark messages as read
       if (response?.data?.data.data?.length > 0) {
         const lastMessage = response.data.data.data[0];
-        await api.post('/api/messages/read', {
+        await api.post("/api/messages/read", {
           conversationId: conversation.id,
           messageId: lastMessage.id,
         });
         onConversationUpdate();
       }
     } catch (error) {
-      console.error('Failed to load messages:', error);
+      console.error("Failed to load messages:", error);
     } finally {
       setIsLoading(false);
     }
@@ -105,11 +105,16 @@ export default function ChatWindow({
 
   const handleNewMessage = (event: any) => {
     if (event.data.conversationId === conversation.id) {
-      setMessages((prev) => [...prev, event.data]);
-      
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === event.data.id)) {
+          return prev;
+        }
+        return [...prev, event.data];
+      });
+
       // Mark as read if not sent by current user
       if (event.data.senderId !== currentUserId) {
-        api.post('/api/messages/read', {
+        api.post("/api/messages/read", {
           conversationId: conversation.id,
           messageId: event.data.id,
         });
@@ -119,17 +124,20 @@ export default function ChatWindow({
   };
 
   const handleTyping = (event: any) => {
-    if (event.data.conversationId === conversation.id && event.data.userId !== currentUserId) {
+    if (
+      event.data.conversationId === conversation.id &&
+      event.data.userId !== currentUserId
+    ) {
       const userId = event.data.userId;
-      
+
       if (event.data.isTyping) {
         setTypingUsers((prev) => new Set(prev).add(userId));
-        
+
         // Clear existing timeout
         if (typingTimeoutRef.current[userId]) {
           clearTimeout(typingTimeoutRef.current[userId]);
         }
-        
+
         // Set new timeout to remove typing indicator
         typingTimeoutRef.current[userId] = setTimeout(() => {
           setTypingUsers((prev) => {
@@ -144,7 +152,7 @@ export default function ChatWindow({
           newSet.delete(userId);
           return newSet;
         });
-        
+
         if (typingTimeoutRef.current[userId]) {
           clearTimeout(typingTimeoutRef.current[userId]);
         }
@@ -154,32 +162,32 @@ export default function ChatWindow({
 
   const handleSendMessage = async (body: string) => {
     try {
-      const response = await api.post('/api/messages', {
+      const response = await api.post("/api/messages", {
         conversationId: conversation.id,
         body,
       });
-      
+
       // Message will be added via WebSocket event
       onConversationUpdate();
     } catch (error) {
-      console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
+      console.error("Failed to send message:", error);
+      alert("Failed to send message. Please try again.");
     }
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const getConversationName = () => {
-    if (conversation.type === 'group') {
-      return conversation.name || 'Group Chat';
+    if (conversation.type === "group") {
+      return conversation.name || "Group Chat";
     }
-    
+
     const otherUser = conversation.participants.find(
       (p) => p.user.id !== currentUserId
     );
-    return otherUser?.user.username || 'Unknown User';
+    return otherUser?.user.username || "Unknown User";
   };
 
   const getTypingUsernames = () => {
@@ -187,6 +195,12 @@ export default function ChatWindow({
       .filter((p) => typingUsers.has(p.user.id))
       .map((p) => p.user.username);
   };
+
+  const getSenderUsernames = (senderId: string) => {
+    return conversation.participants
+      .filter((p) => p.user.id === senderId)
+      .map((p) => p.user.username);
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -198,20 +212,20 @@ export default function ChatWindow({
               {getConversationName()}
             </h2>
             <p className="text-sm text-gray-500">
-              {conversation.type === 'group'
+              {conversation.type === "group"
                 ? `${conversation.participants.length} members`
                 : isConnected
-                ? 'Online'
-                : 'Offline'}
+                ? "Online"
+                : "Offline"}
             </p>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <div
               className={`w-3 h-3 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-gray-400'
+                isConnected ? "bg-green-500" : "bg-gray-400"
               }`}
-              title={isConnected ? 'Connected' : 'Disconnected'}
+              title={isConnected ? "Connected" : "Disconnected"}
             />
           </div>
         </div>
@@ -231,7 +245,9 @@ export default function ChatWindow({
             <div className="text-center text-gray-500">
               <div className="text-5xl mb-4">💬</div>
               <p className="text-lg">No messages yet</p>
-              <p className="text-sm mt-2">Send a message to start the conversation</p>
+              <p className="text-sm mt-2">
+                Send a message to start the conversation
+              </p>
             </div>
           </div>
         ) : (
@@ -239,35 +255,43 @@ export default function ChatWindow({
             {messages.map((message, index) => {
               const isOwnMessage = message.senderId === currentUserId;
               const showSender =
-                conversation.type === 'group' &&
-                !isOwnMessage &&
-                (index === 0 || messages[index - 1].senderId !== message.senderId);
+              conversation.type === "group" &&
+              !isOwnMessage &&
+              (index === 0 ||
+                messages[index - 1].senderId !== message.senderId);
+                console.log("messages", { messages, showSender });
 
               return (
                 <div
                   key={message.id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${
+                    isOwnMessage ? "justify-end" : "justify-start"
+                  }`}
                 >
-                  <div className={`max-w-xs lg:max-w-md ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                  <div
+                    className={`max-w-xs lg:max-w-md ${
+                      isOwnMessage ? "order-2" : "order-1"
+                    }`}
+                  >
                     {showSender && (
                       <p className="text-xs text-gray-600 mb-1 px-3">
-                        {message.sender.username}
+                        {message?.sender?.username || getSenderUsernames(message.senderId)}
                       </p>
                     )}
                     <div
                       className={`rounded-2xl px-4 py-2 ${
                         isOwnMessage
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-900 border border-gray-200'
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-900 border border-gray-200"
                       }`}
                     >
                       <p className="break-words">{message.body}</p>
                       <p
                         className={`text-xs mt-1 ${
-                          isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+                          isOwnMessage ? "text-blue-100" : "text-gray-500"
                         }`}
                       >
-                        {format(new Date(message.createdAt), 'HH:mm')}
+                        {format(new Date(message.createdAt), "HH:mm")}
                       </p>
                     </div>
                   </div>
@@ -277,7 +301,7 @@ export default function ChatWindow({
             <div ref={messagesEndRef} />
           </div>
         )}
-        
+
         {typingUsers.size > 0 && (
           <TypingIndicator usernames={getTypingUsernames()} />
         )}
@@ -292,4 +316,3 @@ export default function ChatWindow({
     </div>
   );
 }
-

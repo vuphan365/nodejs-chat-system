@@ -54,16 +54,20 @@ export default function ChatPage() {
   // This works even when user hasn't joined the conversation room
   useEffect(() => {
     if (socket && isConnected) {
-      const handleNewMessage = (data: any) => {
+      const handleNewMessage = (event: any) => {
+        console.log('New message in conversation list', event)
+        // The event structure is: { type: 'message:new', data: { id, conversationId, senderId, body, createdAt } }
+        const messageData = event.data;
+
         // Update conversation list with new message and increment unread count
         setConversations((prev) =>
           prev.map((conv) => {
-            if (conv.id === data.data.conversationId) {
+            if (conv.id === messageData.conversationId) {
               return {
                 ...conv,
                 lastMessage: {
-                  body: data.data.body,
-                  createdAt: data.data.createdAt,
+                  body: messageData.body,
+                  createdAt: messageData.createdAt,
                 },
                 unreadCount: (conv.unreadCount || 0) + 1,
               };
