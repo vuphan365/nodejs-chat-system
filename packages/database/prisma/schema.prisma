@@ -76,27 +76,11 @@ model Message {
   // Relations
   conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User           @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  readReceipts   ReadReceipt[]
 
   @@index([conversationId, createdAt])
   @@index([senderId, createdAt])
   @@index([createdAt])
   @@map("messages")
-}
-
-model ReadReceipt {
-  id        String   @id @default(cuid())
-  messageId String
-  userId    String
-  readAt    DateTime @default(now())
-  
-  // Relations
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, userId])
-  @@index([userId])
-  @@index([messageId])
-  @@map("read_receipts")
 }
 
 model Inbox {

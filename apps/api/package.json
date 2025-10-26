@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@chat/database": "workspace:*",
-    "@chat/encryption": "workspace:*",
     "@chat/shared": "workspace:*",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

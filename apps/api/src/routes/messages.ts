@@ -4,7 +4,6 @@ import { sendMessageSchema, getMessagesSchema, markAsReadSchema } from '@chat/sh
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
 import { messageRateLimiter } from '../middleware/rateLimiter';
 import { publishEvent } from '../lib/kafka';
-import { encryptionService } from '@chat/encryption';
 import type { ApiResponse, PaginatedResponse, MessageCreatedEvent } from '@chat/shared';
 
 const router = Router();
@@ -59,20 +58,8 @@ router.get('/', async (req: AuthRequest, res) => {
     const hasMore = messages.length > input.limit;
     const data = messages.slice(0, input.limit);
 
-    // Decrypt messages if needed
-    const decryptedMessages = data.map((msg) => ({
-      ...msg,
-      body: encryptionService.decryptMessage({
-        body: msg.body,
-        encrypted: msg.encrypted,
-        keyVersion: msg.keyVersion,
-        iv: msg.iv,
-        authTag: msg.authTag,
-      }),
-    }));
-
-    const response: PaginatedResponse<typeof decryptedMessages[0]> = {
-      data: decryptedMessages,
+    const response: PaginatedResponse<typeof data[0]> = {
+      data,
       cursor: hasMore ? data[data.length - 1].createdAt.toISOString() : undefined,
       hasMore,
     };
@@ -123,20 +110,17 @@ router.post('/', messageRateLimiter, async (req: AuthRequest, res) => {
       }
     }
 
-    // Encrypt message if enabled
-    const encrypted = encryptionService.encryptMessage(input.body);
-
     // Create message
     const message = await prisma.message.create({
       data: {
         id: idempotencyKey || undefined,
         conversationId: input.conversationId,
         senderId: userId,
-        body: encrypted.body,
-        encrypted: encrypted.encrypted,
-        keyVersion: encrypted.keyVersion,
-        iv: encrypted.iv,
-        authTag: encrypted.authTag,
+        body: input.body,
+        encrypted: false,
+        keyVersion: null,
+        iv: null,
+        authTag: null,
       },
       include: {
         sender: {
@@ -191,22 +175,16 @@ router.post('/', messageRateLimiter, async (req: AuthRequest, res) => {
         id: message.id,
         conversationId: message.conversationId,
         senderId: message.senderId,
-        body: input.body, // Send plaintext to Kafka for other services
-        encrypted: encrypted.encrypted,
-        keyVersion: encrypted.keyVersion || undefined,
+        body: input.body,
+        encrypted: false,
+        keyVersion: undefined,
         createdAt: message.createdAt.toISOString(),
       },
     };
 
     await publishEvent(event);
 
-    // Return decrypted message
-    const response = {
-      ...message,
-      body: input.body,
-    };
-
-    res.json({ success: true, data: response } as ApiResponse);
+    res.json({ success: true, data: message } as ApiResponse);
   } catch (error: any) {
     res.status(400).json({
       success: false,
@@ -238,33 +216,24 @@ router.post('/read', async (req: AuthRequest, res) => {
       } as ApiResponse);
     }
 
-    // Create or update read receipt
-    const receipt = await prisma.readReceipt.upsert({
-      where: {
-        messageId_userId: {
-          messageId: input.messageId,
-          userId,
-        },
-      },
-      update: {
-        readAt: new Date(), // Update the timestamp if already exists
-      },
-      create: {
-        messageId: input.messageId,
-        userId,
-      },
-    });
-
     // Get the message that was just marked as read
     const readMessage = await prisma.message.findUnique({
       where: { id: input.messageId },
-      select: { createdAt: true },
+      select: { id: true, conversationId: true, createdAt: true },
     });
 
     if (!readMessage) {
       return res.status(404).json({
         success: false,
         error: { message: 'Message not found' },
+      } as ApiResponse);
+    }
+
+    // Verify the message belongs to the conversation
+    if (readMessage.conversationId !== input.conversationId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Message does not belong to this conversation' },
       } as ApiResponse);
     }
 
@@ -278,8 +247,10 @@ router.post('/read', async (req: AuthRequest, res) => {
       },
     });
 
-    // Update inbox with the correct unread count
-    await prisma.inbox.update({
+    const readAt = new Date();
+
+    // Update inbox with the correct unread count and lastMessageId
+    const inbox = await prisma.inbox.update({
       where: {
         userId_conversationId: {
           userId,
@@ -288,6 +259,8 @@ router.post('/read', async (req: AuthRequest, res) => {
       },
       data: {
         unreadCount: unreadCount,
+        lastMessageId: input.messageId,
+        lastActivity: readAt,
       },
     });
 
@@ -298,11 +271,20 @@ router.post('/read', async (req: AuthRequest, res) => {
         messageId: input.messageId,
         conversationId: input.conversationId,
         userId,
-        readAt: receipt.readAt.toISOString(),
+        readAt: readAt.toISOString(),
       },
     });
 
-    res.json({ success: true, data: receipt } as ApiResponse);
+    res.json({
+      success: true,
+      data: {
+        messageId: input.messageId,
+        conversationId: input.conversationId,
+        userId,
+        readAt: readAt.toISOString(),
+        unreadCount: inbox.unreadCount,
+      }
+    } as ApiResponse);
   } catch (error: any) {
     res.status(400).json({
       success: false,

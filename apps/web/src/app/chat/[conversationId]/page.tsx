@@ -58,13 +58,14 @@ export default function ConversationPage() {
       const handleNewMessage = (event: any) => {
         // The event structure is: { type: 'message:new', data: { id, conversationId, senderId, body, createdAt } }
         const messageData = event.data;
-
+        let isNewConversation = true
         // Update conversation list with new message
         setConversations((prev) =>
           prev.map((conv) => {
             if (conv.id === messageData.conversationId) {
               // Only increment unread if not currently viewing this conversation
               const isCurrentConversation = conversationId === messageData.conversationId;
+              isNewConversation = false
               return {
                 ...conv,
                 lastMessage: {
@@ -77,6 +78,9 @@ export default function ConversationPage() {
             return conv;
           })
         );
+        if (isNewConversation) {
+          handleConversationUpdate()
+        }
       };
 
       socket.on('message:new', handleNewMessage);

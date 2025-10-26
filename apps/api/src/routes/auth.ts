@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { prisma } from '@chat/database';
 import { createUserSchema, loginSchema } from '@chat/shared';
 import { config } from '../config';
@@ -49,7 +49,7 @@ router.post('/register', authRateLimiter, async (req, res) => {
 
     const token = jwt.sign(sessionUser, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
-    });
+    } as SignOptions);
 
     res.json({
       success: true,
@@ -99,7 +99,7 @@ router.post('/login', authRateLimiter, async (req, res) => {
 
     const token = jwt.sign(sessionUser, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
-    });
+    } as SignOptions);
 
     res.json({
       success: true,

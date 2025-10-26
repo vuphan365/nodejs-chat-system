@@ -25,12 +25,7 @@ export const config = {
     secret: process.env.JWT_SECRET || 'your-secret-key-change-this',
     expiresIn: '7d',
   },
-  
-  encryption: {
-    enabled: process.env.CHAT_ENCRYPTION_ENABLED === 'true',
-    key: process.env.CHAT_MESSAGE_KEY || '',
-  },
-  
+
   rateLimit: {
     windowMs: 60 * 1000, // 1 minute
     max: 100, // 100 requests per minute
