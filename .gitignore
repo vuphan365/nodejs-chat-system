@@ -17,6 +17,9 @@ dist/
 .env
 .env*.local
 .env.production
+**/.env
+**/.env*.local
+**/.env.production
 
 # IDE
 .vscode/
@@ -37,4 +40,4 @@ docker-compose.override.yml
 
 # Artillery reports
 artillery-reports/
-
+.turbo

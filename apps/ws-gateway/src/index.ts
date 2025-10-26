@@ -19,7 +19,7 @@ import {
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: ['http://localhost:3000'],
     methods: ['GET', 'POST'],
   },
   transports: ['websocket', 'polling'],
@@ -159,9 +159,32 @@ async function handleKafkaEvent(event: KafkaEvent) {
           },
         };
 
-        // Broadcast to conversation room
+        // Broadcast to conversation room (for users who have joined the conversation)
         io.to(`conversation:${event.data.conversationId}`).emit('message:new', wsEvent);
-        logger.debug({ conversationId: event.data.conversationId }, 'Broadcasted message:new');
+
+        // Also broadcast to all participants' personal rooms (for unread indicators)
+        // This ensures users get notified even if they haven't joined the conversation room
+        try {
+          const participants = await prisma.participant.findMany({
+            where: { conversationId: event.data.conversationId },
+            select: { userId: true },
+          });
+
+          participants.forEach((participant) => {
+            if (participant.userId === event.data.senderId) {
+              return;
+            }
+            io.to(`user:${participant.userId}`).emit('message:new', wsEvent);
+          });
+
+          logger.debug({
+            conversationId: event.data.conversationId,
+            participantCount: participants.length
+          }, 'Broadcasted message:new to conversation and participant rooms');
+        } catch (error) {
+          logger.error({ error, conversationId: event.data.conversationId }, 'Failed to broadcast to participant rooms');
+        }
+
         break;
       }
 

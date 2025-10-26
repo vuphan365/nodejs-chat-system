@@ -238,7 +238,7 @@ router.post('/read', async (req: AuthRequest, res) => {
       } as ApiResponse);
     }
 
-    // Create read receipt
+    // Create or update read receipt
     const receipt = await prisma.readReceipt.upsert({
       where: {
         messageId_userId: {
@@ -246,14 +246,39 @@ router.post('/read', async (req: AuthRequest, res) => {
           userId,
         },
       },
-      update: {},
+      update: {
+        readAt: new Date(), // Update the timestamp if already exists
+      },
       create: {
         messageId: input.messageId,
         userId,
       },
     });
 
-    // Update inbox unread count
+    // Get the message that was just marked as read
+    const readMessage = await prisma.message.findUnique({
+      where: { id: input.messageId },
+      select: { createdAt: true },
+    });
+
+    if (!readMessage) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Message not found' },
+      } as ApiResponse);
+    }
+
+    // Count unread messages: messages created after this read message
+    // that were sent by other users (not the current user)
+    const unreadCount = await prisma.message.count({
+      where: {
+        conversationId: input.conversationId,
+        createdAt: { gt: readMessage.createdAt },
+        senderId: { not: userId }, // Don't count own messages as unread
+      },
+    });
+
+    // Update inbox with the correct unread count
     await prisma.inbox.update({
       where: {
         userId_conversationId: {
@@ -262,7 +287,7 @@ router.post('/read', async (req: AuthRequest, res) => {
         },
       },
       data: {
-        unreadCount: { decrement: 1 },
+        unreadCount: unreadCount,
       },
     });
 

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { SocketProvider } from '@/contexts/SocketContext';
 
 export const metadata: Metadata = {
   title: 'Chat System',
@@ -13,7 +15,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          <SocketProvider>
+            {children}
+          </SocketProvider>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
