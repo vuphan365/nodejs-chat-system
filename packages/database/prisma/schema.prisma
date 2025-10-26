@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  username      String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  // Relations
+  sentMessages  Message[]      @relation("SentMessages")
+  participants  Participant[]
+  inboxes       Inbox[]
+
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Conversation {
+  id           String         @id @default(cuid())
+  type         String         // 'direct' | 'group'
+  name         String?        // For group chats
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  // Relations
+  participants Participant[]
+  messages     Message[]
+  inboxes      Inbox[]
+
+  @@index([type])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+model Participant {
+  conversationId String
+  userId         String
+  role           String         @default("member") // 'admin' | 'member'
+  joinedAt       DateTime       @default(now())
+  
+  // Relations
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+  @@map("participants")
+}
+
+model Message {
+  id             String         @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String         @db.Text
+  encrypted      Boolean        @default(false)
+  keyVersion     Int?           // For key rotation
+  iv             String?        // Initialization vector for encryption
+  authTag        String?        // Authentication tag for AES-GCM
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  
+  // Relations
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User           @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  readReceipts   ReadReceipt[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model ReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  
+  // Relations
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("read_receipts")
+}
+
+model Inbox {
+  userId         String
+  conversationId String
+  unreadCount    Int            @default(0)
+  lastMessageId  String?
+  lastActivity   DateTime       @default(now())
+  
+  // Relations
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, conversationId])
+  @@index([userId, lastActivity])
+  @@index([conversationId])
+  @@map("inboxes")
+}
+

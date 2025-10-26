@@ -1,0 +1,37 @@
+{
+  "name": "chat-system",
+  "version": "1.0.0",
+  "description": "High-performance chat system with Node.js and Next.js 15",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "env:init": "dotenv -e .env",
+    "db:migrate": "pnpm run env:init && cd packages/database && pnpm prisma migrate dev",
+    "db:generate": "pnpm run env:init && cd packages/database && pnpm prisma generate",
+    "db:studio": "pnpm run env:init && cd packages/database && pnpm prisma studio",
+    "load-test:http": "artillery run tests/load/http-messages.yml",
+    "load-test:ws": "artillery run tests/load/ws-delivery.yml",
+    "load-test:all": "npm run load-test:http && npm run load-test:ws"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.0",
+    "dotenv-cli": "^10.0.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
