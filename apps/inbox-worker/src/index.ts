@@ -2,9 +2,11 @@ import { Kafka, Consumer } from 'kafkajs';
 import { prisma } from '@chat/database';
 import pino from 'pino';
 import dotenv from 'dotenv';
+import path from 'path';
 import type { KafkaEvent } from '@chat/shared';
 
-dotenv.config();
+// Load .env from the monorepo root
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const config = {
   kafka: {

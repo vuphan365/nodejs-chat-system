@@ -19,7 +19,7 @@ import {
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: ['http://localhost:3000'],
     methods: ['GET', 'POST'],
   },
   transports: ['websocket', 'polling'],

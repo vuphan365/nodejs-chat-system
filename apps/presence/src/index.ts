@@ -6,8 +6,10 @@ import { Kafka, Producer } from 'kafkajs';
 import jwt from 'jsonwebtoken';
 import pino from 'pino';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Load .env from the monorepo root
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const config = {
   port: parseInt(process.env.PRESENCE_PORT || '4001', 10),

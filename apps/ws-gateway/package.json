@@ -10,21 +10,21 @@
   "dependencies": {
     "@chat/database": "workspace:*",
     "@chat/shared": "workspace:*",
+    "@socket.io/redis-adapter": "^8.2.1",
+    "dotenv": "^16.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "kafkajs": "^2.2.4",
+    "pino": "^8.17.2",
+    "redis": "^4.6.12",
     "socket.io": "^4.6.1",
     "socket.io-redis": "^6.1.1",
-    "@socket.io/redis-adapter": "^8.2.1",
-    "redis": "^4.6.12",
-    "kafkajs": "^2.2.4",
-    "jsonwebtoken": "^9.0.2",
-    "dotenv": "^16.3.1",
-    "pino": "^8.17.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.10.0",
+    "pino-pretty": "^13.1.2",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
 }
-

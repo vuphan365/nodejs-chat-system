@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+// Load .env from the monorepo root
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const config = {
   port: parseInt(process.env.API_PORT || '3001', 10),

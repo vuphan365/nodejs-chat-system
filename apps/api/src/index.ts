@@ -10,12 +10,20 @@ import { initializeEncryptionFromEnv } from '@chat/encryption';
 import authRoutes from './routes/auth';
 import conversationRoutes from './routes/conversations';
 import messageRoutes from './routes/messages';
+import userRoutes from './routes/users';
 
 const app = express();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    // 'https://chat-app-frontend.vercel.app',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(pinoHttp({ logger }));
 
@@ -28,6 +36,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
