@@ -6,7 +6,6 @@ import { config } from './config';
 import { logger } from './lib/logger';
 import { connectRedis } from './lib/redis';
 import { connectKafka, disconnectKafka } from './lib/kafka';
-import { initializeEncryptionFromEnv } from '@chat/encryption';
 import authRoutes from './routes/auth';
 import conversationRoutes from './routes/conversations';
 import messageRoutes from './routes/messages';
@@ -50,9 +49,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Startup
 async function start() {
   try {
-    // Initialize encryption
-    initializeEncryptionFromEnv();
-
     // Connect to Redis
     await connectRedis();
 

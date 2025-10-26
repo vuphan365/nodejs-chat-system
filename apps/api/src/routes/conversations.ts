@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { prisma } from '@chat/database';
 import { createConversationSchema, updateConversationSchema } from '@chat/shared';
 import { authMiddleware, type AuthRequest } from '../middleware/auth';
-import { encryptionService } from '@chat/encryption';
 import type { ApiResponse } from '@chat/shared';
 
 const router = Router();
@@ -36,67 +35,32 @@ router.get('/', async (req: AuthRequest, res) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    // Get last message and calculate unread counts for each conversation
+    // Get inbox data for unread counts
+    const inboxes = await prisma.inbox.findMany({
+      where: {
+        userId,
+        conversationId: { in: conversations.map(c => c.id) },
+      },
+    });
+
+    const inboxMap = new Map(inboxes.map(inbox => [inbox.conversationId, inbox]));
+
+    // Get last message for each conversation
     const conversationData = await Promise.all(
       conversations.map(async (conv) => {
-        // Get the last message in this conversation
         const lastMessage = await prisma.message.findFirst({
           where: { conversationId: conv.id },
           select: { body: true, createdAt: true, encrypted: true, keyVersion: true, iv: true, authTag: true },
           orderBy: { createdAt: 'desc' },
         });
 
-        // Find the last message the user read in this conversation
-        const lastReadReceipt = await prisma.readReceipt.findFirst({
-          where: {
-            userId,
-            message: {
-              conversationId: conv.id,
-            },
-          },
-          include: {
-            message: {
-              select: { createdAt: true },
-            },
-          },
-          orderBy: {
-            message: {
-              createdAt: 'desc',
-            },
-          },
-        });
-
-        // If no read receipt, count all messages from others as unread
-        let unreadCount = 0;
-        if (!lastReadReceipt) {
-          unreadCount = await prisma.message.count({
-            where: {
-              conversationId: conv.id,
-              senderId: { not: userId },
-            },
-          });
-        } else {
-          // Count messages created after the last read message from other users
-          unreadCount = await prisma.message.count({
-            where: {
-              conversationId: conv.id,
-              createdAt: { gt: lastReadReceipt.message.createdAt },
-              senderId: { not: userId },
-            },
-          });
-        }
+        const inbox = inboxMap.get(conv.id);
 
         return {
           conversationId: conv.id,
-          unreadCount,
+          unreadCount: inbox?.unreadCount || 0,
           lastMessage: lastMessage ? {
-            body: encryptionService.decryptMessage({
-              body: lastMessage.body,
-              encrypted: lastMessage.encrypted,
-              keyVersion: lastMessage.keyVersion,
-              iv: lastMessage.iv,
-              authTag: lastMessage.authTag,
-            }),
+            body: lastMessage.body,
             createdAt: lastMessage.createdAt.toISOString(),
           } : undefined,
         };
@@ -167,45 +131,17 @@ router.get('/:id', async (req: AuthRequest, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate unread count based on last read message
-    const lastReadReceipt = await prisma.readReceipt.findFirst({
+    // Get inbox data for unread count
+    const inbox = await prisma.inbox.findUnique({
       where: {
-        userId,
-        message: {
+        userId_conversationId: {
+          userId,
           conversationId: id,
-        },
-      },
-      include: {
-        message: {
-          select: { createdAt: true },
-        },
-      },
-      orderBy: {
-        message: {
-          createdAt: 'desc',
         },
       },
     });
 
-    let unreadCount = 0;
-    if (!lastReadReceipt) {
-      // No read receipt, count all messages from others as unread
-      unreadCount = await prisma.message.count({
-        where: {
-          conversationId: id,
-          senderId: { not: userId },
-        },
-      });
-    } else {
-      // Count messages created after the last read message from other users
-      unreadCount = await prisma.message.count({
-        where: {
-          conversationId: id,
-          createdAt: { gt: lastReadReceipt.message.createdAt },
-          senderId: { not: userId },
-        },
-      });
-    }
+    const unreadCount = inbox?.unreadCount || 0;
 
     // Transform the response to have friendly field names
     const { _count, ...rest } = conversation;
@@ -214,13 +150,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
       count: _count.messages,
       unreadCount,
       lastMessage: lastMessage ? {
-        body: encryptionService.decryptMessage({
-          body: lastMessage.body,
-          encrypted: lastMessage.encrypted,
-          keyVersion: lastMessage.keyVersion,
-          iv: lastMessage.iv,
-          authTag: lastMessage.authTag,
-        }),
+        body: lastMessage.body,
         createdAt: lastMessage.createdAt.toISOString(),
       } : undefined,
     };
@@ -284,45 +214,17 @@ router.post('/', async (req: AuthRequest, res) => {
           orderBy: { createdAt: 'desc' },
         });
 
-        // Calculate unread count based on last read message
-        const lastReadReceipt = await prisma.readReceipt.findFirst({
+        // Get inbox data for unread count
+        const inbox = await prisma.inbox.findUnique({
           where: {
-            userId,
-            message: {
+            userId_conversationId: {
+              userId,
               conversationId: existing.id,
-            },
-          },
-          include: {
-            message: {
-              select: { createdAt: true },
-            },
-          },
-          orderBy: {
-            message: {
-              createdAt: 'desc',
             },
           },
         });
 
-        let unreadCount = 0;
-        if (!lastReadReceipt) {
-          // No read receipt, count all messages from others as unread
-          unreadCount = await prisma.message.count({
-            where: {
-              conversationId: existing.id,
-              senderId: { not: userId },
-            },
-          });
-        } else {
-          // Count messages created after the last read message from other users
-          unreadCount = await prisma.message.count({
-            where: {
-              conversationId: existing.id,
-              createdAt: { gt: lastReadReceipt.message.createdAt },
-              senderId: { not: userId },
-            },
-          });
-        }
+        const unreadCount = inbox?.unreadCount || 0;
 
         const { _count, ...rest } = existing;
         const formattedExisting = {
@@ -330,13 +232,7 @@ router.post('/', async (req: AuthRequest, res) => {
           count: _count.messages,
           unreadCount,
           lastMessage: lastMessage ? {
-            body: encryptionService.decryptMessage({
-              body: lastMessage.body,
-              encrypted: lastMessage.encrypted,
-              keyVersion: lastMessage.keyVersion,
-              iv: lastMessage.iv,
-              authTag: lastMessage.authTag,
-            }),
+            body: lastMessage.body,
             createdAt: lastMessage.createdAt.toISOString(),
           } : undefined,
         };
@@ -446,45 +342,17 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calculate unread count based on last read message
-    const lastReadReceipt = await prisma.readReceipt.findFirst({
+    // Get inbox data for unread count
+    const inbox = await prisma.inbox.findUnique({
       where: {
-        userId,
-        message: {
+        userId_conversationId: {
+          userId,
           conversationId: id,
-        },
-      },
-      include: {
-        message: {
-          select: { createdAt: true },
-        },
-      },
-      orderBy: {
-        message: {
-          createdAt: 'desc',
         },
       },
     });
 
-    let unreadCount = 0;
-    if (!lastReadReceipt) {
-      // No read receipt, count all messages from others as unread
-      unreadCount = await prisma.message.count({
-        where: {
-          conversationId: id,
-          senderId: { not: userId },
-        },
-      });
-    } else {
-      // Count messages created after the last read message from other users
-      unreadCount = await prisma.message.count({
-        where: {
-          conversationId: id,
-          createdAt: { gt: lastReadReceipt.message.createdAt },
-          senderId: { not: userId },
-        },
-      });
-    }
+    const unreadCount = inbox?.unreadCount || 0;
 
     // Transform the response to have friendly field names
     const { _count, ...rest } = conversation;
@@ -493,13 +361,7 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       count: _count.messages,
       unreadCount,
       lastMessage: lastMessage ? {
-        body: encryptionService.decryptMessage({
-          body: lastMessage.body,
-          encrypted: lastMessage.encrypted,
-          keyVersion: lastMessage.keyVersion,
-          iv: lastMessage.iv,
-          authTag: lastMessage.authTag,
-        }),
+        body: lastMessage.body,
         createdAt: lastMessage.createdAt.toISOString(),
       } : undefined,
     };
