@@ -79,7 +79,7 @@ export default function ConversationPage() {
           })
         );
         if (isNewConversation) {
-          loadConversations()
+          handleConversationUpdate()
         }
       };
 

@@ -11,6 +11,8 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
+
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -25,8 +27,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
+    
     const newSocket = io(WS_URL, {
       auth: { token },
       transports: ['websocket'],

@@ -37,16 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  const onAuthorize = (token: string, user: User) => {
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    setToken(token);
+    setUser(user);
+  };
+
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       const { token: newToken, user: newUser } = response.data.data;
-      
-      localStorage.setItem('authToken', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      
-      setToken(newToken);
-      setUser(newUser);
+      onAuthorize(newToken, newUser);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed');
     }
@@ -60,12 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       });
       const { token: newToken, user: newUser } = response.data.data;
-      
-      localStorage.setItem('authToken', newToken);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      
-      setToken(newToken);
-      setUser(newUser);
+      onAuthorize(newToken, newUser);
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Registration failed');
     }
