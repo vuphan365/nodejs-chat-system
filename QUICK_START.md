@@ -63,7 +63,7 @@ This creates two test users:
 
 ```bash
 # Start all services in development mode
-pnpm dev
+   sudo lsof -i :3000
 ```
 
 This starts:

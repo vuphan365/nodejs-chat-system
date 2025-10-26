@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 interface User {
@@ -22,6 +23,7 @@ export default function NewConversationModal({
   onConversationCreated,
   currentUserId,
 }: NewConversationModalProps) {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [conversationType, setConversationType] = useState<'direct' | 'group'>('direct');
@@ -61,14 +63,19 @@ export default function NewConversationModal({
     setError('');
 
     try {
-      await api.post('/api/conversations', {
+      const response = await api.post('/api/conversations', {
         type: conversationType,
         participantIds: selectedUsers,
         name: conversationType === 'group' ? groupName : undefined,
       });
 
+      const newConversationId = response.data.data.id;
+
       onConversationCreated();
       handleClose();
+
+      // Navigate to the new conversation
+      router.push(`/chat/${newConversationId}`);
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to create conversation');
     } finally {

@@ -116,48 +116,58 @@ export default function ConversationList({
               const conversationName = getConversationName(conversation);
               const avatar = getConversationAvatar(conversation);
 
+              const hasUnread = conversation.unreadCount > 0;
               return (
                 <button
                   key={conversation.id}
                   onClick={() => onSelectConversation(conversation)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                    isSelected ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                  className={`w-full p-4 text-left transition relative ${
+                    isSelected
+                      ? 'bg-blue-50 border-l-4 border-blue-600'
+                      : hasUnread
+                      ? 'bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-400'
+                      : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-start space-x-3">
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${
-                        conversation.type === 'group' ? 'bg-purple-600' : 'bg-blue-600'
-                      }`}
-                    >
-                      {avatar}
+                    <div className="relative">
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${
+                          conversation.type === 'group' ? 'bg-purple-600' : 'bg-blue-600'
+                        }`}
+                      >
+                        {avatar}
+                      </div>
+                      {hasUnread && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
+                      )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate">
+                        <h3 className={`truncate ${hasUnread ? 'font-bold text-gray-900' : 'font-semibold text-gray-900'}`}>
                           {conversationName}
                         </h3>
                         {conversation.lastMessage && (
-                          <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                          <span className={`text-xs ml-2 flex-shrink-0 ${hasUnread ? 'text-blue-600 font-semibold' : 'text-gray-500'}`}>
                             {formatDistanceToNow(new Date(conversation.lastMessage.createdAt), {
                               addSuffix: true,
                             })}
                           </span>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600 truncate">
+                        <p className={`text-sm truncate ${hasUnread ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                           {conversation.lastMessage?.body || 'No messages yet'}
                         </p>
-                        {conversation.unreadCount > 0 && (
-                          <span className="ml-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0">
-                            {conversation.unreadCount}
+                        {hasUnread && (
+                          <span className="ml-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 min-w-[24px] text-center">
+                            {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
                           </span>
                         )}
                       </div>
-                      
+
                       {conversation.type === 'group' && (
                         <p className="text-xs text-gray-500 mt-1">
                           {conversation.participants.length} members
