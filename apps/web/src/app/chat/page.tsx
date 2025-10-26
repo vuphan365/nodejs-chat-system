@@ -7,6 +7,7 @@ import ConversationList from "@/components/ConversationList";
 import NewConversationModal from "@/components/NewConversationModal";
 import { api } from "@/lib/api";
 import { useSocket } from "@/contexts/SocketContext";
+import { WsMessageNewEvent } from '@chat/shared';
 
 interface Conversation {
   id: string;
@@ -54,15 +55,15 @@ export default function ChatPage() {
   // This works even when user hasn't joined the conversation room
   useEffect(() => {
     if (socket && isConnected) {
-      const handleNewMessage = (event: any) => {
-        console.log('New message in conversation list', event)
+      const handleNewMessage = (event: WsMessageNewEvent) => {
         // The event structure is: { type: 'message:new', data: { id, conversationId, senderId, body, createdAt } }
         const messageData = event.data;
-
+        let isNewConversation = true
         // Update conversation list with new message and increment unread count
         setConversations((prev) =>
           prev.map((conv) => {
             if (conv.id === messageData.conversationId) {
+              isNewConversation = false
               return {
                 ...conv,
                 lastMessage: {
@@ -75,6 +76,9 @@ export default function ChatPage() {
             return conv;
           })
         );
+        if (isNewConversation) {
+          loadConversations()
+        }
       };
 
       socket.on("message:new", handleNewMessage);

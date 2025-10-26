@@ -259,7 +259,6 @@ export default function ChatWindow({
               !isOwnMessage &&
               (index === 0 ||
                 messages[index - 1].senderId !== message.senderId);
-                console.log("messages", { messages, showSender });
 
               return (
                 <div
